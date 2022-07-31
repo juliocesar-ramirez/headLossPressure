@@ -23,11 +23,17 @@ License
 
 \*---------------------------------------------------------------------------*/
 
+#include "UList.H"
+#include "doubleScalar.H"
+#include "fvPatchField.H"
 #include "headLossPressureFvPatchScalarField.H"
 #include "addToRunTimeSelectionTable.H"
 #include "fvPatchFieldMapper.H"
+#include "scalar.H"
+#include "surfaceFieldsFwd.H"
 #include "volFields.H"
 #include "surfaceFields.H"
+#include <math.h>
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -39,93 +45,51 @@ Foam::scalar Foam::headLossPressureFvPatchScalarField::t() const
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::headLossPressureFvPatchScalarField::
-headLossPressureFvPatchScalarField
-(
-    const fvPatch& p,
-    const DimensionedField<scalar, volMesh>& iF
-)
-:
-    fixedValueFvPatchScalarField(p, iF),
-    scalarData_(0.0),
-    data_(Zero),
-    fieldData_(p.size(), Zero),
-    timeVsData_(),
-    wordData_("wordDefault"),
-    labelData_(-1),
-    boolData_(false)
-{
+Foam::headLossPressureFvPatchScalarField::headLossPressureFvPatchScalarField(
+    const fvPatch &p, const DimensionedField<scalar, volMesh> &iF)
+    : fixedValueFvPatchScalarField(p, iF), scalarData_(0.0), d_(0.0),
+      data_(Zero), fieldData_(p.size(), Zero), timeVsData_(),
+      wordData_("wordDefault"),phiName_("phi"), labelData_(-1), boolData_(false),minorLossFactor_() {}
+
+Foam::headLossPressureFvPatchScalarField::headLossPressureFvPatchScalarField(
+    const fvPatch &p, const DimensionedField<scalar, volMesh> &iF,
+    const dictionary &dict)
+    : fixedValueFvPatchScalarField(p, iF),
+      scalarData_(dict.lookup<scalar>("scalarData")),
+      d_(dict.lookup<scalar>("d")), data_(dict.lookup<scalar>("data")),
+      fieldData_("fieldData", dict, p.size()),
+      timeVsData_(Function1<scalar>::New("timeVsData", dict)),
+      wordData_(dict.lookupOrDefault<word>("wordName", "wordDefault")),
+      phiName_(dict.lookupOrDefault<word>("phi", "phi")),
+      labelData_(-1), boolData_(false),minorLossFactor_(dict.lookup("minorLossFactor")) {
+
+  fixedValueFvPatchScalarField::evaluate();
+
+  /*
+  // Initialise with the value entry if evaluation is not possible
+  fvPatchScalarField::operator=
+  (
+      scalarField("value", dict, p.size())
+  );
+  */
 }
 
+Foam::headLossPressureFvPatchScalarField::headLossPressureFvPatchScalarField(
+    const headLossPressureFvPatchScalarField &ptf, const fvPatch &p,
+    const DimensionedField<scalar, volMesh> &iF,
+    const fvPatchFieldMapper &mapper)
+    : fixedValueFvPatchScalarField(ptf, p, iF, mapper),
+      scalarData_(ptf.scalarData_), d_(ptf.d_), data_(ptf.data_),
+      fieldData_(mapper(ptf.fieldData_)), timeVsData_(ptf.timeVsData_, false),
+      wordData_(ptf.wordData_), phiName_(ptf.phiName_),labelData_(-1), boolData_(ptf.boolData_),minorLossFactor_(ptf.minorLossFactor_) {}
 
-Foam::headLossPressureFvPatchScalarField::
-headLossPressureFvPatchScalarField
-(
-    const fvPatch& p,
-    const DimensionedField<scalar, volMesh>& iF,
-    const dictionary& dict
-)
-:
-    fixedValueFvPatchScalarField(p, iF),
-    scalarData_(dict.lookup<scalar>("scalarData")),
-    data_(dict.lookup<scalar>("data")),
-    fieldData_("fieldData", dict, p.size()),
-    timeVsData_(Function1<scalar>::New("timeVsData", dict)),
-    wordData_(dict.lookupOrDefault<word>("wordName", "wordDefault")),
-    labelData_(-1),
-    boolData_(false)
-{
-
-
-    fixedValueFvPatchScalarField::evaluate();
-
-    /*
-    // Initialise with the value entry if evaluation is not possible
-    fvPatchScalarField::operator=
-    (
-        scalarField("value", dict, p.size())
-    );
-    */
-}
-
-
-Foam::headLossPressureFvPatchScalarField::
-headLossPressureFvPatchScalarField
-(
-    const headLossPressureFvPatchScalarField& ptf,
-    const fvPatch& p,
-    const DimensionedField<scalar, volMesh>& iF,
-    const fvPatchFieldMapper& mapper
-)
-:
-    fixedValueFvPatchScalarField(ptf, p, iF, mapper),
-    scalarData_(ptf.scalarData_),
-    data_(ptf.data_),
-    fieldData_(mapper(ptf.fieldData_)),
-    timeVsData_(ptf.timeVsData_, false),
-    wordData_(ptf.wordData_),
-    labelData_(-1),
-    boolData_(ptf.boolData_)
-{}
-
-
-Foam::headLossPressureFvPatchScalarField::
-headLossPressureFvPatchScalarField
-(
-    const headLossPressureFvPatchScalarField& ptf,
-    const DimensionedField<scalar, volMesh>& iF
-)
-:
-    fixedValueFvPatchScalarField(ptf, iF),
-    scalarData_(ptf.scalarData_),
-    data_(ptf.data_),
-    fieldData_(ptf.fieldData_),
-    timeVsData_(ptf.timeVsData_, false),
-    wordData_(ptf.wordData_),
-    labelData_(-1),
-    boolData_(ptf.boolData_)
-{}
-
+Foam::headLossPressureFvPatchScalarField::headLossPressureFvPatchScalarField(
+    const headLossPressureFvPatchScalarField &ptf,
+    const DimensionedField<scalar, volMesh> &iF)
+    : fixedValueFvPatchScalarField(ptf, iF), scalarData_(ptf.scalarData_),
+      d_(ptf.d_), data_(ptf.data_), fieldData_(ptf.fieldData_),
+      timeVsData_(ptf.timeVsData_, false), wordData_(ptf.wordData_), phiName_(ptf.phiName_),
+      labelData_(-1), boolData_(ptf.boolData_),minorLossFactor_(ptf.minorLossFactor_) {}
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
@@ -161,13 +125,24 @@ void Foam::headLossPressureFvPatchScalarField::updateCoeffs()
         return;
     }
 
-    fixedValueFvPatchScalarField::operator==
-    (
-        data_
-      + fieldData_
-      + scalarData_*timeVsData_->value(t())
-    );
+    const fvsPatchField<scalar> &phip =
+        patch().lookupPatchField<surfaceScalarField, scalar>(phiName_);
+    scalar sumPhi = gSum(patch().lookupPatchField<surfaceScalarField,  scalar>( phiName_));
+    const scalar totalArea=gSum(patch().magSf());
+    scalar Uavg=mag(sumPhi)/totalArea;
 
+    // perdidas menores
+    scalar dpMinor=0;
+    scalar k;
+    scalar dMinor;
+    for (int i=0; i<minorLossFactor_.size(); i++) {
+        dMinor=minorLossFactor_[i].first().component(0);
+        k=minorLossFactor_[i].first().component(1);
+        dpMinor+=k*0.5*sqrt(Uavg*sqrt(d_*dMinor));
+    }
+    
+    fixedValueFvPatchScalarField::operator==(
+        data_ + fieldData_ + scalarData_ * timeVsData_->value(t()));
 
     fixedValueFvPatchScalarField::updateCoeffs();
 }
@@ -180,10 +155,12 @@ void Foam::headLossPressureFvPatchScalarField::write
 {
     fvPatchScalarField::write(os);
     writeEntry(os, "scalarData", scalarData_);
+    writeEntry(os, "d", d_);
     writeEntry(os, "data", data_);
     writeEntry(os, "fieldData", fieldData_);
     writeEntry(os, timeVsData_());
     writeEntry(os, "wordData", wordData_);
+    writeEntry(os, "phi", phiName_);
     writeEntry(os, "value", *this);
 }
 

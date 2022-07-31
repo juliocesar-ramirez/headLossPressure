@@ -96,6 +96,8 @@ class headLossPressureFvPatchScalarField
         //- Single valued scalar quantity, e.g. a coefficient
         scalar scalarData_;
 
+        scalar d_;
+
         //- Single valued Type quantity, e.g. reference pressure pRefValue_
         //  Other options include vector, tensor
         scalar data_;
@@ -110,81 +112,60 @@ class headLossPressureFvPatchScalarField
         //- Word entry, e.g. pName_ for name of the pressure field on database
         word wordData_;
 
+        word phiName_;
+
         //- Label, e.g. patch index, current time index
         label labelData_;
 
         //- Boolean for true/false, e.g. specify if flow rate is volumetric_
         bool boolData_;
 
+    typedef Tuple2<vector,  word> indexedVector;
+    const List<indexedVector> minorLossFactor_;
+    
+            // Private Member Functions
 
-    // Private Member Functions
+            //- Return current time
+            scalar
+            t() const;
 
-        //- Return current time
-        scalar t() const;
+      public:
+        //- Runtime type information
+        TypeName("headLossPressure");
 
-
-public:
-
-    //- Runtime type information
-    TypeName("headLossPressure");
-
-
-    // Constructors
+        // Constructors
 
         //- Construct from patch and internal field
-        headLossPressureFvPatchScalarField
-        (
-            const fvPatch&,
-            const DimensionedField<scalar, volMesh>&
-        );
+        headLossPressureFvPatchScalarField(
+            const fvPatch &, const DimensionedField<scalar, volMesh> &);
 
         //- Construct from patch, internal field and dictionary
-        headLossPressureFvPatchScalarField
-        (
-            const fvPatch&,
-            const DimensionedField<scalar, volMesh>&,
-            const dictionary&
-        );
+        headLossPressureFvPatchScalarField(
+            const fvPatch &, const DimensionedField<scalar, volMesh> &,
+            const dictionary &);
 
         //- Construct by mapping given fixedValueTypeFvPatchField
         //  onto a new patch
-        headLossPressureFvPatchScalarField
-        (
-            const headLossPressureFvPatchScalarField&,
-            const fvPatch&,
-            const DimensionedField<scalar, volMesh>&,
-            const fvPatchFieldMapper&
-        );
+        headLossPressureFvPatchScalarField(
+            const headLossPressureFvPatchScalarField &, const fvPatch &,
+            const DimensionedField<scalar, volMesh> &,
+            const fvPatchFieldMapper &);
 
         //- Disallow copy without setting internal field reference
-        headLossPressureFvPatchScalarField
-        (
-            const headLossPressureFvPatchScalarField&
-        ) = delete;
+        headLossPressureFvPatchScalarField(
+            const headLossPressureFvPatchScalarField &) = delete;
 
         //- Copy constructor setting internal field reference
-        headLossPressureFvPatchScalarField
-        (
-            const headLossPressureFvPatchScalarField&,
-            const DimensionedField<scalar, volMesh>&
-        );
+        headLossPressureFvPatchScalarField(
+            const headLossPressureFvPatchScalarField &,
+            const DimensionedField<scalar, volMesh> &);
 
         //- Construct and return a clone setting internal field reference
-        virtual tmp<fvPatchScalarField> clone
-        (
-            const DimensionedField<scalar, volMesh>& iF
-        ) const
-        {
-            return tmp<fvPatchScalarField>
-            (
-                new headLossPressureFvPatchScalarField
-                (
-                    *this,
-                    iF
-                )
-            );
+        virtual tmp<fvPatchScalarField>
+        clone(const DimensionedField<scalar, volMesh> &iF) const {
+          return tmp<fvPatchScalarField>(
+              new headLossPressureFvPatchScalarField(*this, iF));
         }
-
 
     // Member Functions
 
