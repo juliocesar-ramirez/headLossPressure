@@ -23,6 +23,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
+#include "DimensionedScalarField.H"
 #include "UList.H"
 #include "doubleScalar.H"
 #include "fvPatchField.H"
@@ -33,6 +34,7 @@ License
 #include "surfaceFieldsFwd.H"
 #include "volFields.H"
 #include "surfaceFields.H"
+#include <cmath>
 #include <math.h>
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
@@ -42,6 +44,27 @@ Foam::scalar Foam::headLossPressureFvPatchScalarField::t() const
     return db().time().timeOutputValue();
 }
 
+Foam::scalar Foam::headLossPressureFvPatchScalarField::f(scalar di,scalar epsilon, scalar U) {
+    scalar f1=Zero;
+
+    const dictionary &transportProperties =
+      db().lookupObject<dictionary>("transportProperties");
+  const dimensionedScalar nuDimScal("nu", dimViscosity, transportProperties);
+  const scalar &nu = nuDimScal.value();
+
+  scalar reynolds = di * U / nu;
+  if (reynolds == 0) {
+      f1=0;
+  }
+  else if(reynolds<2300){
+      f1=64/reynolds;
+  }
+  else {
+      scalar fInicial=sqr(1/(-1.8*log10((6.11/reynolds)+pow((epsilon/di)/3.7,1.11))));
+      f1=sqr(1/(-2*log10((epsilon/di)/3.7+2.51/(reynolds*sqr(fInicial)))));
+  }
+  return f1;
+}
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -49,7 +72,8 @@ Foam::headLossPressureFvPatchScalarField::headLossPressureFvPatchScalarField(
     const fvPatch &p, const DimensionedField<scalar, volMesh> &iF)
     : fixedValueFvPatchScalarField(p, iF), scalarData_(0.0), d_(0.0),
       data_(Zero), fieldData_(p.size(), Zero), timeVsData_(),
-      wordData_("wordDefault"),phiName_("phi"), labelData_(-1), boolData_(false),minorLossFactor_() {}
+      wordData_("wordDefault"), phiName_("phi"), labelData_(-1),
+      boolData_(false), minorLossFactor_() {}
 
 Foam::headLossPressureFvPatchScalarField::headLossPressureFvPatchScalarField(
     const fvPatch &p, const DimensionedField<scalar, volMesh> &iF,
@@ -139,6 +163,18 @@ void Foam::headLossPressureFvPatchScalarField::updateCoeffs()
         dMinor=minorLossFactor_[i].first().component(0);
         k=minorLossFactor_[i].first().component(1);
         dpMinor+=k*0.5*sqrt(Uavg*sqrt(d_*dMinor));
+    }
+
+    //perdidas por friction
+    scalar dpFriction=0;
+    scalar dFriccion,epsilon,L; 
+    for (int i=0; i<frictionLossFactor_.size(); i++) {
+        dFriccion = frictionLossFactor_[i].first().component(0);
+         epsilon = frictionLossFactor_[i].first().component(1);
+         L = frictionLossFactor_[i].first().component(2);
+
+         dpFriction=f(dFriccion,  epsilon,Uavg)*L/dFriccion*0.5*sqrt(Uavg*sqr(d_/dFriccion))+dpFriction;
+
     }
     
     fixedValueFvPatchScalarField::operator==(
