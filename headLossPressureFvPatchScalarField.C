@@ -160,7 +160,7 @@ void Foam::headLossPressureFvPatchScalarField::updateCoeffs()
     const scalarField& phip =
         patch().lookupPatchField<surfaceScalarField, scalar>(phiName_);
 
-    scalar sumPhi = gSum(patch().lookupPatchField<surfaceScalarField,  scalar>( phiName_));
+    scalar sumPhi=gSum(phip);
     const scalar totalArea=gSum(patch().magSf());
     scalar Uavg=mag(sumPhi)/totalArea;
 
